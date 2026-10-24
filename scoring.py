@@ -52,11 +52,23 @@ def combine_signals(model_score: float, style_score: float) -> float:
     The weights in config.py are placeholders. Change them, or ignore them and
     write a different rule.
     """
-    # TODO: replace this
+    for name, value in (
+        ("model_score", model_score),
+        ("style_score", style_score),
+    ):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0 and 1")
+
+    total_weight = (
+        config.WEIGHT_MODEL_SIGNAL + config.WEIGHT_STYLE_SIGNAL
+    )
+    if total_weight <= 0:
+        raise ValueError("The combined signal weights must sum to a positive value")
+
     return (
         config.WEIGHT_MODEL_SIGNAL * model_score
         + config.WEIGHT_STYLE_SIGNAL * style_score
-    )
+    ) / total_weight
 
 
 def score_to_label(score: float) -> tuple[str, str]:
@@ -85,12 +97,25 @@ def score_to_label(score: float) -> tuple[str, str]:
     think if they got it on their own work. That question is the whole
     milestone.
     """
-    # TODO: replace this — thresholds are in config.py
+    if not 0.0 <= score <= 1.0:
+        raise ValueError("score must be between 0 and 1")
+
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
+        return "ai", (
+            "This text has features associated with AI-generated writing, "
+            "but this result is not proof of who wrote it."
+        )
+
     if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return "human", (
+            "This text has features more consistent with human writing, "
+            "although the result cannot establish authorship."
+        )
+
+    return "unsure", (
+        "We can't confidently distinguish AI-like from human-like writing "
+        "in this text. This result is inconclusive."
+    )
 
 
 def label_ranges() -> list[tuple[str, str]]:
