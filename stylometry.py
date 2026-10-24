@@ -64,8 +64,16 @@ def sentence_length_spread(text: str) -> float:
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
     """
-    # TODO: replace this
-    return 0.0
+    sentence_words = [len(words(sentence)) for sentence in sentences(text)]
+    if len(sentence_words) < 2:
+        return 0.0
+
+    mean_length = statistics.mean(sentence_words)
+    if mean_length == 0:
+        return 0.0
+
+    variation = statistics.pstdev(sentence_words) / mean_length
+    return min(variation, 1.0)
 
 
 def type_token_ratio(text: str) -> float:
@@ -80,8 +88,11 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)
+    if not tokens:
+        return 0.0
+
+    return len(set(tokens)) / len(tokens)
 
 
 def punctuation_density(text: str) -> float:
@@ -94,8 +105,13 @@ def punctuation_density(text: str) -> float:
         more interesting than full stops, because they vary more between
         writers.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)
+    if not tokens:
+        return 0.0
+
+    punctuation_count = len(re.findall(r"[^\w\s]", text))
+    density = punctuation_count / len(tokens)
+    return min(density / 0.2, 1.0)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +138,21 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    spread = sentence_length_spread(text)
+    vocabulary = type_token_ratio(text)
+    punctuation = punctuation_density(text)
+
+    ai_like_spread = 1.0 - spread
+    ai_like_vocabulary = 1.0 - vocabulary
+    ai_like_punctuation = 1.0 - punctuation
+
+    score = (
+        ai_like_spread
+        + ai_like_vocabulary
+        + ai_like_punctuation
+    ) / 3.0
+
+    return max(0.0, min(score, 1.0))
 
 
 if __name__ == "__main__":
@@ -135,8 +164,7 @@ if __name__ == "__main__":
     )
 
     print(f"{len(sentences(text))} sentences, {len(words(text))} words\n")
-    print(f"sentence_length_spread   {sentence_length_spread(text)}")
-    print(f"type_token_ratio         {type_token_ratio(text)}")
-    print(f"punctuation_density      {punctuation_density(text)}")
-    print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")
+    print(f"sentence_length_spread   {sentence_length_spread(text):.4f}")
+    print(f"type_token_ratio         {type_token_ratio(text):.4f}")
+    print(f"punctuation_density      {punctuation_density(text):.4f}")
+    print(f"style_signal             {style_signal(text):.4f}   (higher = more likely AI)")
