@@ -42,63 +42,66 @@ Two things worth knowing before you pick numbers:
   a **miss**.
 
 ---
-## 1.
+## 1. False positives
 
 <!-- Your criterion. It must name a number. -->
 
-
+Of 10 pieces of writing I personally wrote, no more than 1 may receive the high-confidence AI label in each of the three trials.
 
 **Why this target:**
 
+A false accusation can damage a writer's credibility, so I would rather miss some AI-generated writing than incorrectly label a real person's work as AI. Requiring the target to hold in all three trials helps account for variation in model scores.
 
 
 ---
 
-## 2.
+## 2. Score spread
 
 <!-- Your criterion. -->
 
-
+When testing 5 clearly human-written samples and 5 clearly AI-generated samples, the average combined score for the AI-generated samples should be at least 0.20 higher than the average combined score for the human-written samples in each of the three trials.
 
 **Why this target:**
 
-
+A measurable difference between the two groups would show that the detector provides some useful separation. A difference of 0.20 is a meaningful starting target without assuming that the detector can perfectly identify authorship.
 
 ---
 
-## 3.
+## 3. Label coverage
+
 
 <!-- Your criterion. -->
 
+All three labels—human, unsure, and ai—must be produced by at least one test input in each of the three trials.
 
 
 **Why this target:**
 
-
+A detector that only produces human or AI labels cannot communicate uncertainty. The unsure label is important because AI detection is imperfect, and uncertain cases should not automatically become accusations.
 
 ---
 
-## 4.
+## 4. Appeal workflow
 
 <!-- Your criterion. -->
 
-
+For every valid appeal submitted for an existing content ID, the service must return a successful response, append an appeal entry with status under_review to the audit log, and preserve the original decision. Test this with at least 3 valid appeals.
 
 **Why this target:**
 
-
+Writers need a way to challenge a decision they believe is incorrect. Recording each appeal while preserving the original decision creates a traceable history instead of silently replacing the original result.
 
 ---
 
-## 5.
+## 5. Input validation
 
 <!-- Your criterion. -->
 
-
+The service must return a 4xx client-error response for submissions with missing text, empty or whitespace-only text, or text exceeding the documented input-length limit. It must handle all three cases without crashing or recording a normal detection decision.
 
 **Why this target:**
 
-
+Invalid or excessively large inputs should be rejected predictably. This protects service reliability and prevents invalid submissions from being treated as legitimate detection results.
 
 ---
 
