@@ -39,7 +39,19 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
+1. A writer submits text and a creator ID to POST /submit.
 
+2. The route validates that the request contains non-empty text and a creator ID, and rejects text longer than 20,000 characters.
+
+3. The model signal in detector.py::model_signal measures how predictable the text is to the GPT-2 language model.
+
+4. The style signal in stylometry.py::style_signal measures sentence-length variation, vocabulary diversity, and punctuation density.
+
+5. scoring.py::combine_signals combines the two signals using a weighted average.
+
+6. scoring.py::score_to_label maps the combined score to human, unsure, or ai.
+
+7. The decision and both signal scores are appended to the audit log. If the writer appeals, POST /appeal records the appeal as a separate entry and marks it under_review.
 
 ---
 
@@ -53,19 +65,25 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** 
+The model signal measures text predictability using GPT-2. The detector calculates perplexity and converts it to a score between 0 and 1, where a higher score indicates text that the model considers more predictable.
 
 **Why that might differ between human and AI writing:**
+AI-generated writing may resemble patterns that a language model predicts easily. However, human writing can also be conventional and predictable.
 
 **What it can't see:**
+It cannot establish who actually wrote the text or understand the writer's intentions. Plain, formal, or second-language writing may also be predictable and receive a misleading score.
 
 ### Signal two — the style signal
 
 **What it measures:**
+The style signal combines three text features: normalized sentence-length variation, type-token ratio (unique words divided by total words), and normalized punctuation density. Each feature is converted into an AI-like direction, and the three values receive equal weight.
 
 **Why that might differ between human and AI writing:**
+Generated text may have relatively consistent sentence lengths, repeated vocabulary, and conventional punctuation. More varied writing may produce a different feature profile.
 
 **What it can't see:**
+It cannot understand meaning or establish authorship. Text length, quotations, editing, typos, and deliberate changes to sentence structure can affect the measurements. These simple features have not been calibrated to establish reliable authorship probabilities.
 
 ### The combining rule
 
@@ -73,8 +91,16 @@
      signals disagree? -->
 
 **The rule:**
+Take a weighted average of the model signal and style signal. Both signals use the same direction: higher means more AI-like. If they disagree, the weighted average falls between their scores instead of automatically trusting either signal.
 
 **The numbers:**
+* Model signal weight: 0.50
+* Style signal weight: 0.50
+* Formula: combined score = (0.50 × model score) + (0.50 × style score)
+* Human threshold: 0.35
+* AI threshold: 0.65
+
+The combined score is a heuristic, not a calibrated probability that a person used AI.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -82,7 +108,7 @@
      somewhere else, say where. -->
 
 **A case where my two signals split, and what my rule does with it:**
-
+In my sample run, the model score was 0.4395 while the style score was approximately 0.1882. The model signal was higher than the style signal. The equal-weight average was approximately 0.3138, which fell below the human threshold of 0.35. This demonstrates how the combining rule handles disagreement, but the resulting label is not proof of authorship.
 
 
 ---
@@ -95,17 +121,16 @@
      Write them for someone who has never heard the word "threshold". -->
 
 | Label | Score range | The exact text a reader sees |
-|---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+|-------|-------------|------------------------------|
+| high-confidence human | 0.00–0.35, inclusive | This text has features more consistent with human writing, although the result cannot establish authorship. |
+| unsure | Above 0.35 and below 0.65 | We can't confidently distinguish AI-like from human-like writing in this text. This result is inconclusive. |
+| high-confidence AI | 0.65–1.00, inclusive | This text has features associated with AI-generated writing, but this result is not proof of who wrote it. |
 
 **Why I worded the "unsure" one this way:**
 <!-- It's the hardest of the three. It has to admit uncertainty without
      sounding like an accusation, because the person reading it may well have
      written every word themselves. -->
-
-
+The unsure label communicates that the system cannot confidently distinguish between the two patterns. It avoids accusing the writer and acknowledges that the score is inconclusive.
 
 ---
 
@@ -122,32 +147,50 @@
      diagnostics. -->
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
+curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text":"I disagree. This approach seemed promising, but the results were inconsistent. I tested it again and found another problem!","creator_id":"unit7-test-user"}'
 ```
 
 ```json
+{
+  "content_id": "e6e733ea-2c64-4d49-a3de-6b3887704ac4",
+  "guess": "human",
+  "confidence": 0.3138410658289851,
+  "label": "This text has features more consistent with human writing, although the result cannot establish authorship.",
+  "model_score": 0.4395,
+  "style_score": 0.18818213165797013,
+  "combined_score": 0.3138410658289851
+}
+
 
 ```
 
 **An appeal**
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
+curl -s -X POST http://127.0.0.1:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+  -d '{"content_id":"e6e733ea-2c64-4d49-a3de-6b3887704ac4","reasoning":"I wrote this text myself and would like the decision reviewed."}'
 ```
 
 ```json
+{
+  "content_id": "e6e733ea-2c64-4d49-a3de-6b3887704ac4",
+  "message": "Your appeal has been recorded for review.",
+  "status": "under_review"
+}
+
 
 ```
 
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+curl -s "http://127.0.0.1:5000/log?limit=5"
 ```
+
+The log contains two entries for this content ID: the original decision, followed by the appeal. The decision retains both signal scores, the combined score, the label, and its original decided status. The appeal is appended separately with status: "under_review" and the writer's reasoning.
 
 ```json
 
@@ -159,15 +202,16 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Help implementing the three stylometry measurements and a combined style score.
+- *What came back:* Python implementations using sentence-length variation, vocabulary diversity, punctuation density, and a normalized combined score.
+- *What I changed:* I integrated the functions into my project and ran terminal tests to check their output.
+
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Help connecting the scoring functions to the Flask submission and appeal routes.
+- *What came back:* A submission workflow that validates inputs, computes scores, assigns labels, and logs decisions, plus an appeal workflow.
+- *What I changed:* I integrated the route implementations and tested a submission, an appeal, and the audit log.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
