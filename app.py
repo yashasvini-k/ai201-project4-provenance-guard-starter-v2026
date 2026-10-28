@@ -240,6 +240,13 @@ def submit():
             scoring.combine_signals(model_score, style_score)
         )
         guess, label = scoring.score_to_label(combined_score)
+    except ValueError as exc:
+        if "Text is too short to score" in str(exc):
+            return jsonify({
+                "error": "text_too_short",
+                "message": "Please submit more text for analysis.",
+            }), 400
+        raise
     except detector.DetectorUnavailable:
         return jsonify({
             "error": "detector_unavailable",
