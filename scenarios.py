@@ -30,8 +30,8 @@ SCENARIOS = [
         # things you actually wrote. This is the criterion that matters most and
         # it's meaningless with someone else's prose.
         "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
+            "In my experience, learning a new technical skill takes patience and consistent practice. I usually understand a concept better when I break it into smaller steps, try the code myself, and investigate errors instead of immediately looking for a solution.",
+            "When I work on a project, I prefer to test each part before moving forward. This helps me identify problems earlier and understand why something works. I also keep track of the changes I make so I can revisit my decisions when I need to troubleshoot an issue.",
         ],
     },
     {
@@ -40,9 +40,9 @@ SCENARIOS = [
         # Inputs spread across your score range, so you can check all three
         # labels are actually reachable.
         "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
+            "The implementation follows a consistent sequence of operations, validates incoming data, and returns a structured result. Each component has a defined responsibility, which makes the application easier to test and maintain.",
+            "I tried running the program again, but it still didn't work. I checked the terminal, looked at the error, and changed one thing at a time until I could figure out what was going wrong.",
+            "Technology can make everyday tasks easier, but whether it improves people's lives depends on how it is used. I can see reasons to adopt new tools and reasons to be cautious, especially when their results affect important decisions.",
         ],
     },
     # A bad-input criterion looks like this. Uncomment and adjust if that's one
