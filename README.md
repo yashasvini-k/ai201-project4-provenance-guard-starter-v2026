@@ -219,23 +219,30 @@ The log contains two entries for this content ID: the original decision, followe
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 10 submissions per minute, 200 submissions per day
 
 **Why those numbers and not others:**
 <!-- Think about two people: a real writer submitting their own work a few
      times an hour, and a script sending a thousand variations to map your
      thresholds. Your numbers have to be liveable for the first and hostile to
      the second. -->
+I chose these limits to allow legitimate writers to submit work several times without being blocked, while restricting scripts that send many submissions in a short period to probe the detector. The limit of 10 per minute blocks a burst of 15 requests after the first 10, while the daily limit of 200 allows reasonable use over a full day.
 
 **What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+     differently — one script can look like a thousand callers, and one household
+     can look like one. -->
+The rate limiter counts requests by client IP address. This is simple to implement, but multiple legitimate users sharing an IP address could reach the limit together, while a script using multiple IP addresses could potentially bypass it.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
+Command: python run_attacks.py --flood 15
+
+200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
+
+The first 10 submissions were accepted with HTTP 200. The remaining 5 were rejected with HTTP 429 (Too Many Requests). The audit log recorded all five rejections with the reason rate_limited and the limit 10 per 1 minute.
 
 ```
 
