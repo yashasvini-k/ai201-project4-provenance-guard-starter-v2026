@@ -260,13 +260,108 @@ The first 10 submissions were accepted with HTTP 200. The remaining 5 were rejec
 <!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
 ```json
-
+[
+  {
+    "content_id": "e6e733ea-2c64-4d49-a3de-6b3887704ac4",
+    "creator_id": "unit7-test-user",
+    "guess": "human",
+    "combined_score": 0.3138410658289851,
+    "model_score": 0.4395,
+    "style_score": 0.18818213165797013,
+    "status": "decided",
+    "timestamp": "2026-10-24T20:51:01+00:00"
+  },
+  {
+    "content_id": "e6e733ea-2c64-4d49-a3de-6b3887704ac4",
+    "creator_id": "unit7-test-user",
+    "event": "appeal",
+    "reasoning": "I wrote this text myself and would like the decision reviewed.",
+    "status": "under_review",
+    "timestamp": "2026-10-24T20:52:15+00:00"
+  },
+  {
+    "creator_id": "flood_tester",
+    "event": "rejected",
+    "limit": "10 per 1 minute",
+    "reason": "rate_limited",
+    "status": "rejected",
+    "timestamp": "2026-10-27T23:52:11+00:00"
+  },
+  {
+    "content_id": "c237e425-749d-47d7-b842-50a84b9c4df3",
+    "creator_id": "attacker_EV02",
+    "guess": "unsure",
+    "combined_score": 0.3681338007819005,
+    "model_score": 0.5943,
+    "style_score": 0.14196760156380095,
+    "status": "decided",
+    "timestamp": "2026-10-28T00:36:57+00:00"
+  },
+  {
+    "content_id": "05e8c97d-a649-4645-854c-a0197c646f50",
+    "creator_id": "attacker_EV10",
+    "guess": "ai",
+    "combined_score": 0.8472746380527775,
+    "model_score": 0.9792,
+    "style_score": 0.715349276105555,
+    "status": "decided",
+    "timestamp": "2026-10-28T00:36:57+00:00"
+  },
+  {
+    "combined_score": 0.29606666666666664,
+    "content_id": "f994b7aa-9e3b-455f-a2a6-cf13cd16321f",
+    "creator_id": "flood_tester",
+    "guess": "human",
+    "model_score": 0.2588,
+    "style_score": 0.3333333333333333,
+    "status": "decided",
+    "timestamp": "2026-10-27T23:52:11+00:00"
+  },
+  {
+    "combined_score": 0.29606666666666664,
+    "content_id": "51a75c5d-ccf3-4491-942d-ac813d846535",
+    "creator_id": "flood_tester",
+    "guess": "human",
+    "model_score": 0.2588,
+    "style_score": 0.3333333333333333,
+    "status": "decided",
+    "timestamp": "2026-10-27T23:52:11+00:00"
+  },
+  {
+    "creator_id": "flood_tester",
+    "event": "rejected",
+    "limit": "10 per 1 minute",
+    "reason": "rate_limited",
+    "status": "rejected",
+    "timestamp": "2026-10-27T23:52:11+00:00"
+  },
+  {
+    "combined_score": 0.30400664580260095,
+    "content_id": "c4e8deda-6cf9-4965-ab84-abc031babbe7",
+    "creator_id": "attacker_EV01",
+    "guess": "human",
+    "model_score": 0.1635,
+    "style_score": 0.4445132916052019,
+    "status": "decided",
+    "timestamp": "2026-10-28T00:36:57+00:00"
+  },
+  {
+    "combined_score": 0.46547309275972304,
+    "content_id": "0adda843-dc3b-4271-9555-29b5178aa3f5",
+    "creator_id": "attacker_EV03",
+    "guess": "unsure",
+    "model_score": 0.6662,
+    "style_score": 0.264746185519446,
+    "status": "decided",
+    "timestamp": "2026-10-28T00:36:57+00:00"
+  }
+]
 ```
 
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
 
-
+The most concerning outcome was FP03, a sample representing a non-native English speaker writing carefully. The detector classified it as AI with a combined score of 0.661. This is a potential false positive: careful or formal writing by a human may resemble AI-generated text. A writer could lose credibility if this score were treated as proof of AI authorship. The FP05 technical-documentation sample was also classified as AI (0.653), reinforcing the risk. These results show why the detector's output should be treated as an uncertain signal rather than definitive evidence of authorship.
 
 ---
 
@@ -276,11 +371,9 @@ whose work got caught by it:
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. my own writing | No more than 1 of 10 personally written samples receives a high-confidence AI label per trial. | 2 samples tested; 1 labeled AI | Same results | Same results | Incomplete — 10 samples not tested |
+| 2. label coverage | All three labels (`human`, `unsure`, `ai`) appear in every trial. | Only `unsure` | Only `unsure` | Only `unsure` | Miss |
+
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
@@ -311,22 +404,65 @@ that produced it:
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** I updated the `/submit` route in `app.py` to catch
+the detector's `ValueError` when submitted text is too short to score.
+The API now returns HTTP 400 with a `text_too_short` error and a
+helpful message instead of returning HTTP 500.
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it:** The before attack run showed that
+MF02, a single-character submission, caused an HTTP 500 because the
+detector required a few sentences to score the text.
 
 ### Attack Run — After
 
 <!-- Same format. `run_attacks.py --label after` -->
 
+The after run was generated by `run_attacks.py::main` against `app.py::submit` on October 27, 2026, at 21:00.
+
+- **Total attacks:** 56
+- **Automatically marked BROKE:** 0
+- **Requiring manual judgment:** 56
+
+The short-text handling fix worked for the specific failure observed before the change. MF02, a single-character submission, returned HTTP 400 instead of HTTP 500. MF01 (whitespace-only text) and MF08 (60,000-character text) also returned HTTP 400.
+
+However, the detector still has classification weaknesses. EV08 was labeled `human` with a score of 0.256. FP03, representing carefully written text from a non-native English speaker, was labeled `ai` with a score of 0.661. FP05, representing human-written technical documentation, was labeled `ai` with a score of 0.653.
+
+The report's zero automatically marked BROKE cases means no case triggered the script's automatic failure conditions. It does **not** mean all attacks passed. All 56 cases still require manual review, as the report states.
+
+The flood tests returned HTTP 429 in the displayed results. Since rate limiting can affect subsequent requests, these results should be interpreted alongside the separate rate-limit test.
+
+
+| Attack | Expected concern | Actual result | Assessment |
+|---|---|---|---|
+| EV08 | Short AI text evades detection | `human`, score 0.256 | Potential evasion |
+| FP03 | Carefully written human text gets a false positive | `ai`, score 0.661 | Potential false positive |
+| FP05 | Human technical documentation gets a false positive | `ai`, score 0.653 | Potential false positive |
+| MF01 | Whitespace-only input | HTTP 400 | Invalid input rejected |
+| MF02 | Single-character input | HTTP 400 | Short-text error handled |
+| MF08 | Oversized input | HTTP 400 | Invalid input rejected |
+
+The verdicts above are assessments based on each test's stated target, not independently verified ground truth.
 
 
 **Did it help, and how do I know:**
 
 <!-- Widening the unsure band usually fixes one problem and creates another.
      Reporting that trade honestly is worth full credit. -->
+Yes, for this specific failure.
+Before the change, MF02 caused HTTP 500. After the change, MF02
+returned HTTP 400. The after attack run reported zero automatically
+marked BROKE cases, compared with one before. This confirms the
+short-text error is handled, but does not mean every attack passed.
 
+The improvement fixed the specific short-input failure. The before
+run recorded an HTTP 500 for MF02; the after run recorded HTTP 400.
+The API now rejects text that cannot be scored without exposing an
+internal server error.
 
+The improvement did not address the detector's classification
+weaknesses. EV08 was still labeled human, and FP03 and FP05 were
+still labeled AI. I would consider the error-handling fix successful
+but the overall detector evaluation incomplete.
 
 ---
 
@@ -334,7 +470,21 @@ that produced it:
 
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
-
+- Short AI-generated text can be classified as human, as shown by EV08.
+- Carefully written human text and technical documentation can receive
+  AI labels, as shown by FP03 and FP05.
+- Emoji-only and right-to-left-script inputs can receive high AI scores.
+- The label-coverage evaluation produced only unsure results in the
+  earlier run, so all three labels have not been demonstrated across
+  that evaluation.
+- The score-spread criterion has not been evaluated with the required
+  five human and five AI samples.
+- The false-positive criterion has not been established using ten
+  confirmed examples of my own writing across three trials.
+- The appeal workflow still needs at least three verified appeals,
+  including confirmation that each original decision is preserved.
+- The attack report requires manual review; zero automatically marked
+  BROKE cases does not mean all 56 cases passed.
 
 
 **The trade I'd make if this ran for real:**
@@ -342,7 +492,13 @@ that produced it:
 <!-- Two sentences. Fewer wrong accusations means more AI text getting through.
      Say which way you'd go and WHO PAYS FOR IT. -->
 
-
+I would prioritize avoiding false accusations over forcing the
+detector to classify every submission as human or AI. I would preserve
+the unsure outcome, reject invalid inputs safely, and treat scores as
+signals rather than proof of authorship. Before using this system in
+a consequential setting, I would test a larger, representative dataset
+and validate performance across writing styles, languages, and text
+lengths. I would also require an appeal process and human review.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
