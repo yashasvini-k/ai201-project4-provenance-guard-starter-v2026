@@ -25,8 +25,10 @@ Routes:
 """
 
 import uuid
+import time
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
+from werkzeug.exceptions import HTTPException
 
 import audit
 import config
@@ -35,6 +37,21 @@ import scoring
 import stylometry
 
 app = Flask(__name__)
+
+@app.before_request
+def start_request_timer():
+    """Record when each request begins."""
+    g.request_started_at = time.perf_counter()
+
+
+def get_request_duration_ms():
+    """Return the elapsed request time in milliseconds."""
+    started = getattr(g, "request_started_at", None)
+
+    if started is None:
+        return None
+
+    return round((time.perf_counter() - started) * 1000, 2)
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
@@ -117,6 +134,44 @@ if config.RATE_LIMITING_ENABLED:
             "limit": str(exc.description),
         }), 429
 
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc):
+    """Log unexpected errors and return a safe response."""
+
+    # Preserve Flask's normal handling of HTTP errors such as 404 and 405.
+    if isinstance(exc, HTTPException):
+        return exc
+
+    payload = request.get_json(silent=True)
+
+    if not isinstance(payload, dict):
+        payload = {}
+
+    creator_id = payload.get("creator_id", "unknown")
+
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        creator_id = "unknown"
+
+    try:
+        audit.log_rejection(
+            creator_id=creator_id.strip(),
+            reason="unexpected_application_error",
+            error_category="unexpected_application_error",
+            exception_type=type(exc).__name__,
+            request_duration_ms=get_request_duration_ms(),
+            method=request.method,
+            endpoint=request.path,
+        )
+    except Exception:
+        app.logger.exception("Failed to write unexpected-error audit record")
+
+    app.logger.exception("Unexpected application error")
+
+    return jsonify({
+        "error": "internal_error",
+        "message": "An unexpected error occurred. Please try again later.",
+    }), 500
 
 # ── The worked example. Already works. Don't edit. ────────────────────────────
 
@@ -262,6 +317,7 @@ def submit():
         combined_score=combined_score,
         label=label,
         status="decided",
+        request_duration_ms=get_request_duration_ms(),
     )
 
     return jsonify({
